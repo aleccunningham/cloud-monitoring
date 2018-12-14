@@ -1,0 +1,69 @@
+version: "3"
+
+services:
+  loki:
+    image: grafana/loki:master
+    ports:
+      - 3100:3100
+    volumes:
+      - ./loki/:/etc/loki
+    command: -config.file=/etc/loki/loki-local-config.yaml
+    networks:
+      - loki
+
+  promtail:
+    image: grafana/promtail:master
+    volumes:
+      - ./promtail/:/etc/promtail
+      - /var/log:/var/log
+    command: -config.file=/etc/promtail/promtail-docker-config.yaml
+    networks:
+      - loki
+
+  grafana:
+    image: grafana/grafana:master
+    ports:
+      - 3000:3000
+    volumes:
+      - grafana_data:/var/lib/grafana
+    environment:
+      GF_EXPLORE_ENABLED: "true"
+    networks:
+      - loki
+      - monitor-net
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus/:/etc/prometheus/
+      - prometheus_data:/prometheus
+    ports:
+      - 9090:9090
+    command: -config.file=/etc/prometheus/prometheus.yaml
+    networks:
+      - loki
+      - monitor-net
+
+  alertmanager:
+    image: prom/alertmanager
+    ports:
+      - 9093:9093
+    volumes:
+      - "./alertmanager/:/etc/alertmanager/"
+      - alertmanager_data:/alertmanager
+    networks:
+      - monitor-net
+    restart: always
+    command:
+      - '--config.file=/etc/alertmanager/config.yml'
+      - '--storage.path=/alertmanager'
+
+volumes:
+  grafana_data:
+  prometheus_data:
+  alertmanager_data:
+
+networks:
+  loki:
+  monitor-net:
+    external: true
